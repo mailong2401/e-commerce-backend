@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from 'src/entities/User';
+import { User } from 'src/modules/user/User.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
@@ -11,10 +11,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   providers: [AuthService, JwtStrategy],
   imports: [
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'secret-key-e-commerce',
-      signOptions: {
-        expiresIn: '15m', // Access token hết hạn sau 15 phút
-      },
+      signOptions: {},
     }),
     TypeOrmModule.forFeature([User]),
   ],

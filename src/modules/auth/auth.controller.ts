@@ -2,14 +2,15 @@ import {
   Body,
   Controller,
   Get,
+  Patch,
   Post,
   Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterDto } from 'src/dto/createUser';
-import { LoginDto } from 'src/dto/login';
+import { RegisterDto } from 'src/modules/user/dto/createUser';
+import { LoginDto } from 'src/modules/user/dto/login';
 import { AuthGuard } from '@nestjs/passport';
 
 @Controller('auth')
@@ -48,5 +49,12 @@ export class AuthController {
   getProfile(@Req() request: any) {
     // User info đã được JwtStrategy gắn vào request.user
     return request.user;
+  }
+
+  @Patch('address')
+  @UseGuards(AuthGuard('jwt')) // ← 'jwt' khớp với tên strategy
+  updateAddress(@Req() request: any, @Body() body: { address: string }) {
+    // User info đã được JwtStrategy gắn vào request.user
+    return this.authService.updateAddress(request.user.userId, body.address);
   }
 }
