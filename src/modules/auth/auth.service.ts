@@ -22,7 +22,7 @@ export class AuthService {
     private jwtService: JwtService,
     readonly otpService: OtpService,
     private readonly redisService: RedisService,
-  ) {}
+  ) { }
 
   async sendOtpRegister(email: string, username: string) {
     const existingEmail = await this.userRepo.findOneBy({ email });
@@ -38,14 +38,9 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto, otp: string) {
-    const { username, email, password, phone } = registerDto;
-    // verify OTP (fail sẽ throw)
+    const { firstName, lastName, username, email, password, phone } =
+      registerDto;
     await this.otpService.verifyOtp(email, otp);
-    //check lại tránh race condition
-    //dù đã unique ở database nhưng 2 request cùng verify OTP
-    // → cả 2 đều pass OTP
-    // → cùng insert DB
-    // → 1 cái crash
     const existingUser = await this.userRepo.findOneBy({ email });
     if (existingUser) {
       throw new ConflictException('User đã tồn tại!');
@@ -58,6 +53,8 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = this.userRepo.create({
+      firstName,
+      lastName,
       username,
       email,
       password: hashedPassword,
