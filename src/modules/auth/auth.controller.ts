@@ -16,9 +16,15 @@ import { AuthGuard } from '@nestjs/passport';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Post('send-otp')
+  sendOtp(@Body('email') email: string, @Body('username') username: string) {
+    return this.authService.sendOtpRegister(email, username);
+  }
+
   @Post('register')
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(@Body() registerDto: RegisterDto, @Body('otp') otp: string) {
+    return this.authService.register(registerDto, otp);
   }
 
   @Post('login')

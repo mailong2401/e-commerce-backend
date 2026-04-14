@@ -12,13 +12,63 @@ import * as bcrypt from 'bcrypt';
 import { RegisterDto } from 'src/modules/user/dto/createUser';
 import { LoginDto } from 'src/modules/user/dto/login';
 import { JwtService } from '@nestjs/jwt';
+import { RedisService } from './redis.service';
+import { OtpService } from '../otp/otp.service';
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private jwtService: JwtService,
+    readonly otpService: OtpService,
+    private readonly redisService: RedisService,
   ) {}
+
+  async sendOtpRegister(email: string, username: string) {
+    const existingEmail = await this.userRepo.findOneBy({ email });
+    if (existingEmail) {
+      throw new ConflictException('Email đã tồn tại!');
+    }
+    const existingUsername = await this.userRepo.findOneBy({ username });
+    if (existingUsername) {
+      throw new ConflictException('Username đã tồn tại!');
+    }
+    //Gửi OTP
+    return await this.otpService.sendOtp(email);
+  }
+
+  async register(registerDto: RegisterDto, otp: string) {
+    const { username, email, password, phone } = registerDto;
+    // verify OTP (fail sẽ throw)
+    await this.otpService.verifyOtp(email, otp);
+    //check lại tránh race condition
+    //dù đã unique ở database nhưng 2 request cùng verify OTP
+    // → cả 2 đều pass OTP
+    // → cùng insert DB
+    // → 1 cái crash
+    const existingUser = await this.userRepo.findOneBy({ email });
+    if (existingUser) {
+      throw new ConflictException('User đã tồn tại!');
+    }
+    const existingUsername = await this.userRepo.findOneBy({ username });
+    if (existingUsername) {
+      throw new ConflictException('Username đã tồn tại!');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = this.userRepo.create({
+      username,
+      email,
+      password: hashedPassword,
+      phone,
+    });
+
+    await this.userRepo.save(user);
+
+    const { password: _, ...result } = user;
+    return result;
+  }
 
   private setAuthCookies(
     response: any,
@@ -42,28 +92,6 @@ export class AuthService {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
       path: '/',
     });
-  }
-
-  async register(registerDto: RegisterDto) {
-    const { username, email, password, phone } = registerDto;
-    const existingUser = await this.userRepo.findOneBy({ email });
-    if (existingUser) {
-      throw new ConflictException('User đã tồn tại!');
-    }
-    const existingUsername = await this.userRepo.findOneBy({ username });
-    if (existingUsername) {
-      throw new ConflictException('Username đã tồn tại!');
-    }
-    const hashedPassword = await bcrypt.hash(password, 10); //Salt 10
-    const user = await this.userRepo.create({
-      username,
-      email,
-      password: hashedPassword,
-      phone: phone,
-    });
-    await this.userRepo.save(user);
-    const { password: _, ...result } = user;
-    return result;
   }
 
   async login(loginDto: LoginDto, response: Response) {
