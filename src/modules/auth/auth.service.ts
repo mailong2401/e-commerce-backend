@@ -194,4 +194,25 @@ export class AuthService {
       message: 'Cập nhật địa chỉ thành công!',
     };
   }
+
+  async checkEmailExists(email: string) {
+    if (!email) {
+      throw new BadRequestException('Email này không được để trống');
+    }
+    const user = await this.userRepo.findOneBy({ email });
+    return {
+      exists: !!user,
+    };
+  }
+  async checkUsernameExists(username: string) {
+    if (!username) {
+      throw new BadRequestException('Username không được để trống');
+    }
+
+    const user = await this.userRepo.findOneBy({ username });
+
+    return {
+      exists: !!user,
+    };
+  }
 }

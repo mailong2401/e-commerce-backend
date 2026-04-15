@@ -4,6 +4,7 @@ import {
   Get,
   Patch,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -15,16 +16,26 @@ import { AuthGuard } from '@nestjs/passport';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('send-otp')
   sendOtp(@Body('email') email: string, @Body('username') username: string) {
     return this.authService.sendOtpRegister(email, username);
   }
 
+  @Get('check-email')
+  async checkEmail(@Query('email') email: string) {
+    return this.authService.checkEmailExists(email);
+  }
+
+  @Get('check-username')
+  async checkUsername(@Query('username') username: string) {
+    return this.authService.checkUsernameExists(username);
+  }
+
   @Post('register')
-  async register(@Body() registerDto: RegisterDto, @Body('otp') otp: string) {
-    return this.authService.register(registerDto, otp);
+  async register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto, registerDto.otp);
   }
 
   @Post('login')

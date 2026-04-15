@@ -25,4 +25,7 @@ export class RegisterDto {
   @IsNotEmpty()
   @MinLength(6)
   phone!: string;
+
+  @IsString()
+  otp: string;
 }
