@@ -6,15 +6,15 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from 'src/modules/user/entity/user.entity';
+import { User } from '@/modules/user/entity/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { RegisterDto } from 'src/modules/user/dto/register';
-import { LoginDto } from 'src/modules/user/dto/login';
+import { RegisterDto } from '@/modules/auth/dto/register';
+import { LoginDto } from '@/modules/auth/dto/login';
 import { JwtService } from '@nestjs/jwt';
-import { OtpService } from './otp/otp.service';
+import { OtpService } from '@/modules/auth/otp/otp.service';
 import { ConfigService } from '@nestjs/config';
-import { UpdateDto } from '../user/dto/update';
+import { UpdateDto } from '@/modules/user/dto/update';
 @Injectable()
 export class AuthService {
   constructor(
@@ -23,7 +23,7 @@ export class AuthService {
     private jwtService: JwtService,
     readonly otpService: OtpService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   async sendOtpRegister(email: string, username: string) {
     const existingEmail = await this.userRepo.findOneBy({ email });

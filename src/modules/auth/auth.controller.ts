@@ -10,14 +10,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterDto } from 'src/modules/user/dto/register';
-import { LoginDto } from 'src/modules/user/dto/login';
+import { RegisterDto } from '@/modules/auth/dto/register';
+import { LoginDto } from '@/modules/auth/dto/login';
 import { AuthGuard } from '@nestjs/passport';
-import { UpdateDto } from '../user/dto/update';
+import { UpdateDto } from '@/modules/user/dto/update';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('send-otp')
   sendOtp(@Body('email') email: string, @Body('username') username: string) {
