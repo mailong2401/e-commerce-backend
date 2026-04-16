@@ -1,12 +1,21 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { Transform } from 'class-transformer';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsPhoneNumber,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class RegisterDto {
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }) => value?.trim())
   lastName!: string;
 
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }) => value?.trim())
   firstName!: string;
 
   @IsString()
@@ -24,8 +33,10 @@ export class RegisterDto {
 
   @IsNotEmpty()
   @MinLength(6)
+  @IsPhoneNumber('VN')
   phone!: string;
 
   @IsString()
-  otp: string;
+  @IsNotEmpty()
+  otp!: string;
 }

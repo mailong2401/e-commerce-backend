@@ -10,13 +10,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterDto } from 'src/modules/user/dto/createUser';
+import { RegisterDto } from 'src/modules/user/dto/register';
 import { LoginDto } from 'src/modules/user/dto/login';
 import { AuthGuard } from '@nestjs/passport';
+import { UpdateDto } from '../user/dto/update';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @Post('send-otp')
   sendOtp(@Body('email') email: string, @Body('username') username: string) {
@@ -35,7 +36,7 @@ export class AuthController {
 
   @Post('register')
   async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto, registerDto.otp);
+    return this.authService.register(registerDto);
   }
 
   @Post('login')
@@ -73,5 +74,11 @@ export class AuthController {
   updateAddress(@Req() request: any, @Body() body: { address: string }) {
     // User info đã được JwtStrategy gắn vào request.user
     return this.authService.updateAddress(request.user.userId, body.address);
+  }
+
+  @Patch('update-profile')
+  @UseGuards(AuthGuard('jwt'))
+  updateProfile(@Req() request: any, @Body() body: Partial<UpdateDto>) {
+    return this.authService.updateProfile(request.user.userId, body);
   }
 }

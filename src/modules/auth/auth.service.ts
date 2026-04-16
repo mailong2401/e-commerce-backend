@@ -6,14 +6,15 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from 'src/modules/user/User.entity';
+import { User } from 'src/modules/user/entity/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { RegisterDto } from 'src/modules/user/dto/createUser';
+import { RegisterDto } from 'src/modules/user/dto/register';
 import { LoginDto } from 'src/modules/user/dto/login';
 import { JwtService } from '@nestjs/jwt';
-import { RedisService } from './redis.service';
-import { OtpService } from '../otp/otp.service';
+import { OtpService } from './otp/otp.service';
+import { ConfigService } from '@nestjs/config';
+import { UpdateDto } from '../user/dto/update';
 @Injectable()
 export class AuthService {
   constructor(
@@ -21,8 +22,8 @@ export class AuthService {
     private readonly userRepo: Repository<User>,
     private jwtService: JwtService,
     readonly otpService: OtpService,
-    private readonly redisService: RedisService,
-  ) { }
+    private readonly configService: ConfigService,
+  ) {}
 
   async sendOtpRegister(email: string, username: string) {
     const existingEmail = await this.userRepo.findOneBy({ email });
@@ -37,15 +38,15 @@ export class AuthService {
     return await this.otpService.sendOtp(email);
   }
 
-  async register(registerDto: RegisterDto, otp: string) {
-    const { firstName, lastName, username, email, password, phone } =
+  async register(registerDto: RegisterDto) {
+    const { firstName, lastName, username, email, password, phone, otp } =
       registerDto;
     await this.otpService.verifyOtp(email, otp);
-    const existingUser = await this.userRepo.findOneBy({ email });
-    if (existingUser) {
-      throw new ConflictException('User đã tồn tại!');
+    const existingEmail = await this.checkEmailExists(email);
+    if (existingEmail.exists) {
+      throw new ConflictException('Email đã tồn tại!');
     }
-    const existingUsername = await this.userRepo.findOneBy({ username });
+    const existingUsername = await this.checkUsernameExists(username);
     if (existingUsername) {
       throw new ConflictException('Username đã tồn tại!');
     }
@@ -64,7 +65,12 @@ export class AuthService {
     await this.userRepo.save(user);
 
     const { password: _, ...result } = user;
-    return result;
+    return {
+      status: 200,
+      success: true,
+      message: 'Đăng kí thành công!',
+      result: result,
+    };
   }
 
   private setAuthCookies(
@@ -75,7 +81,7 @@ export class AuthService {
     // Cookie cho access token
     response.cookie('access_token', accessToken, {
       httpOnly: true, // Không cho JS truy cập (chống XSS)
-      secure: process.env.NODE_ENV === 'production', // Chỉ HTTPS trong production
+      secure: this.configService.get('NODE_ENV') === 'production', // Chỉ HTTPS trong production
       sameSite: 'strict', // Chống CSRF
       maxAge: 15 * 60 * 1000, // 15 phút
       path: '/',
@@ -84,7 +90,7 @@ export class AuthService {
     // Cookie cho refresh token
     response.cookie('refresh_token', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: this.configService.get('NODE_ENV') === 'production',
       sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
       path: '/',
@@ -128,8 +134,9 @@ export class AuthService {
 
     // Set cookies
     this.setAuthCookies(response, accessToken, refreshToken);
-
     return {
+      status: 200,
+      success: true,
       message: 'Đăng nhập thành công',
       user: {
         id: user.id,
@@ -171,7 +178,7 @@ export class AuthService {
         maxAge: 15 * 60 * 1000, // 15 phút
       });
 
-      return { message: 'Đã refresh token' };
+      return { status: 200, success: true, message: 'Đã refresh token' };
     } catch (error) {
       throw new UnauthorizedException('Refresh token không hợp lệ!');
     }
@@ -181,7 +188,7 @@ export class AuthService {
     // Xóa cookies
     response.clearCookie('access_token');
     response.clearCookie('refresh_token');
-    return { message: 'Đăng xuất thành công' };
+    return { status: 200, success: true, message: 'Đăng xuất thành công' };
   }
 
   async updateAddress(userId: string, address: string) {
@@ -191,6 +198,8 @@ export class AuthService {
     }
     await this.userRepo.update(userId, { address: address });
     return {
+      status: 200,
+      success: true,
       message: 'Cập nhật địa chỉ thành công!',
     };
   }
@@ -204,6 +213,7 @@ export class AuthService {
       exists: !!user,
     };
   }
+
   async checkUsernameExists(username: string) {
     if (!username) {
       throw new BadRequestException('Username không được để trống');
@@ -213,6 +223,51 @@ export class AuthService {
 
     return {
       exists: !!user,
+    };
+  }
+
+  async updateProfile(userId: number, updateData: Partial<UpdateDto>) {
+    // Kiểm tra nếu không có dữ liệu cập nhật
+    if (Object.keys(updateData).length === 0) {
+      throw new BadRequestException('Không có dữ liệu cập nhật');
+    }
+    // Tìm user
+    const user = await this.userRepo.findOneBy({ id: userId });
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy user');
+    }
+    if (updateData.firstName) {
+      user.firstName = updateData.firstName;
+    }
+    if (updateData.lastName) {
+      user.lastName = updateData.lastName;
+    }
+
+    if (updateData.newPassword) {
+      if (!updateData.password) {
+        throw new BadRequestException('Vui lòng nhập mật khẩu cũ');
+      }
+
+      const isPasswordValid = await bcrypt.compare(
+        updateData.password,
+        user.password,
+      );
+      if (!isPasswordValid) {
+        throw new ConflictException('Mật khẩu cũ không đúng!');
+      }
+
+      user.password = await bcrypt.hash(updateData.newPassword, 10);
+    }
+
+    await this.userRepo.save(user);
+
+    // Remove password trước khi trả về
+    const { password, ...result } = user;
+    return {
+      status: 200,
+      success: true,
+      message: 'Cập nhật thành công',
+      result: result,
     };
   }
 }

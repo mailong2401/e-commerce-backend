@@ -3,7 +3,11 @@ services:
     image: postgres:15
     container_name: postgres_db
     restart: always
-    network_mode: "host"
+    ports:
+      - '5432:5432'
+    # network_mode: "host"
+    # chỉ dùng cho linux
+    # docker desktop dùng ports
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -15,7 +19,11 @@ services:
     image: redis:7
     container_name: redis_otp
     restart: always
-    network_mode: "host"
+    ports:
+      - '6379:6379'
+    # network_mode: "host"
+    # chỉ dùng cho linux
+    # docker desktop dùng ports
 
 volumes:
   postgres_data:

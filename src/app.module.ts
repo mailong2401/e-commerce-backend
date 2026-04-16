@@ -4,9 +4,12 @@ import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from './modules/user/user.module';
-import { User } from './modules/user/User.entity';
-import { OtpModule } from './modules/otp/otp.module';
-import { ConfigModule, ConfigService } from "@nestjs/config"
+import { User } from './modules/user/entity/user.entity';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ProductModule } from './modules/product/product.module';
+import { Product } from './modules/product/entity/product.entity';
+import { ProductVariant } from './modules/product/entity/product-variant.entity';
+import { VariantImage } from './modules/product/entity/variant-image.entity';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -22,15 +25,15 @@ import { ConfigModule, ConfigService } from "@nestjs/config"
         database: configService.get<string>('POSTGRES_DB'),
         username: configService.get<string>('POSTGRES_USER'),
         password: configService.get<string>('POSTGRES_PASSWORD'),
-        entities: [User],
-        synchronize: true
-      })
+        entities: [User, Product, ProductVariant, VariantImage],
+        synchronize: true,
+      }),
     }),
     AuthModule,
     UserModule,
-    OtpModule,
+    ProductModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

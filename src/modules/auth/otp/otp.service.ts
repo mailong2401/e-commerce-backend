@@ -1,10 +1,10 @@
 // otp.service.ts
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { RedisService } from '../auth/redis.service';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class OtpService {
-  constructor(private readonly redisService: RedisService) { }
+  constructor(private readonly redisService: RedisService) {}
 
   generateOtp(): string {
     return Math.floor(100000 + Math.random() * 900000).toString(); // 6 số

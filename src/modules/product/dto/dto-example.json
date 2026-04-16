@@ -1,0 +1,27 @@
+{
+  "name": "Áo thun nam",
+  "description": "Áo thun chất liệu cotton cao cấp",
+  "thumbnailUrl": "https://res.cloudinary.com/.../thumbnail.jpg",
+  "variants": [
+    {
+      "size": "M",
+      "color": "Đen",
+      "price": 250000,
+      "stock": 50,
+      "imageUrl": "https://res.cloudinary.com/.../variant-main.jpg",
+      "subImages": [
+        "https://res.cloudinary.com/.../sub1.jpg",
+        "https://res.cloudinary.com/.../sub2.jpg",
+        "https://res.cloudinary.com/.../sub3.jpg"
+      ]
+    },
+    {
+      "size": "L",
+      "color": "Trắng",
+      "price": 250000,
+      "stock": 30,
+      "imageUrl": "https://res.cloudinary.com/.../variant-main2.jpg",
+      "subImages": []
+    }
+  ]
+}

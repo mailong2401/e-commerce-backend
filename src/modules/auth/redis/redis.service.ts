@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 export class RedisService {
   private redis: Redis;
 
-  constructor(private configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {
     this.redis = new Redis({
       host: this.configService.get<string>('REDIS_HOST'),
       port: +this.configService.get<number>('REDIS_PORT', 6379),
