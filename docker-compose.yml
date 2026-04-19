@@ -4,10 +4,7 @@ services:
     container_name: postgres_db
     restart: always
     ports:
-      - '5432:5432'
-    # network_mode: "host"
-    # chỉ dùng cho linux
-    # docker desktop dùng ports
+      - '${POSTGRES_PORT}:5432'
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -20,10 +17,6 @@ services:
     container_name: redis_otp
     restart: always
     ports:
-      - '6379:6379'
-    # network_mode: "host"
-    # chỉ dùng cho linux
-    # docker desktop dùng ports
-
+      - '${REDIS_PORT}:6379'
 volumes:
   postgres_data:

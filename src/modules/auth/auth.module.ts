@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from 'src/modules/user/entity/user.entity';
+import { User } from '@/modules/user/entity/user.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RedisService } from './redis/redis.service';
@@ -25,4 +25,4 @@ import { GoogleStrategy } from './google/google.strategy';
     TypeOrmModule.forFeature([User]),
   ],
 })
-export class AuthModule {}
+export class AuthModule { }
