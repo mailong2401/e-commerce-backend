@@ -14,7 +14,7 @@ import { LoginDto } from 'src/modules/user/dto/login';
 import { JwtService } from '@nestjs/jwt';
 import { OtpService } from './otp/otp.service';
 import { ConfigService } from '@nestjs/config';
-import { UpdateDto } from '../user/dto/update';
+import { RegisterGoogleDto } from '../user/dto/registerGoogle';
 @Injectable()
 export class AuthService {
   constructor(
@@ -47,7 +47,7 @@ export class AuthService {
       throw new ConflictException('Email đã tồn tại!');
     }
     const existingUsername = await this.checkUsernameExists(username);
-    if (existingUsername) {
+    if (existingUsername.exists) {
       throw new ConflictException('Username đã tồn tại!');
     }
 
@@ -71,6 +71,29 @@ export class AuthService {
       message: 'Đăng kí thành công!',
       result: result,
     };
+  }
+
+  async createToken(user: any, response: Response) {
+    // Tạo payload cho JWT
+    const payload = {
+      sub: user.id,
+      email: user.email,
+    };
+
+    // Tạo access token (15 phút)
+    const accessToken = this.jwtService.sign(payload, {
+      secret: process.env.ACCESS_TOKEN_SECRET,
+      expiresIn: '15m',
+    });
+
+    // Tạo refresh token (7 ngày)
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: process.env.REFRESH_TOKEN_SECRET,
+      expiresIn: '7d',
+    });
+
+    // Set cookies
+    this.setAuthCookies(response, accessToken, refreshToken);
   }
 
   private setAuthCookies(
@@ -111,40 +134,7 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new UnauthorizedException('Sai tài khoản hoặc mật khẩu');
     }
-
-    // Tạo payload cho JWT
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      name: user.username,
-      role: user.role,
-    };
-
-    // Tạo access token (15 phút)
-    const accessToken = this.jwtService.sign(payload, {
-      secret: process.env.ACCESS_TOKEN_SECRET,
-      expiresIn: '15m',
-    });
-
-    // Tạo refresh token (7 ngày)
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: process.env.REFRESH_TOKEN_SECRET,
-      expiresIn: '7d',
-    });
-
-    // Set cookies
-    this.setAuthCookies(response, accessToken, refreshToken);
-    return {
-      status: 200,
-      success: true,
-      message: 'Đăng nhập thành công',
-      user: {
-        id: user.id,
-        name: user.username,
-        email: user.email,
-        role: user.role,
-      },
-    };
+    await this.createToken(user, response);
   }
 
   refreshToken(response: any, refreshToken: string) {
@@ -162,8 +152,6 @@ export class AuthService {
       const newPayload = {
         sub: payload.sub,
         email: payload.email,
-        name: payload.name,
-        role: payload.role,
       };
       const newAccessToken = this.jwtService.sign(newPayload, {
         secret: process.env.ACCESS_TOKEN_SECRET,
@@ -191,19 +179,6 @@ export class AuthService {
     return { status: 200, success: true, message: 'Đăng xuất thành công' };
   }
 
-  async updateAddress(userId: string, address: string) {
-    const existingUser = await this.userRepo.findOneBy({ id: Number(userId) });
-    if (!existingUser) {
-      throw new NotFoundException('User không tồn tại!');
-    }
-    await this.userRepo.update(userId, { address: address });
-    return {
-      status: 200,
-      success: true,
-      message: 'Cập nhật địa chỉ thành công!',
-    };
-  }
-
   async checkEmailExists(email: string) {
     if (!email) {
       throw new BadRequestException('Email này không được để trống');
@@ -226,48 +201,47 @@ export class AuthService {
     };
   }
 
-  async updateProfile(userId: number, updateData: Partial<UpdateDto>) {
-    // Kiểm tra nếu không có dữ liệu cập nhật
-    if (Object.keys(updateData).length === 0) {
-      throw new BadRequestException('Không có dữ liệu cập nhật');
-    }
-    // Tìm user
-    const user = await this.userRepo.findOneBy({ id: userId });
-    if (!user) {
-      throw new NotFoundException('Không tìm thấy user');
-    }
-    if (updateData.firstName) {
-      user.firstName = updateData.firstName;
-    }
-    if (updateData.lastName) {
-      user.lastName = updateData.lastName;
-    }
-
-    if (updateData.newPassword) {
-      if (!updateData.password) {
-        throw new BadRequestException('Vui lòng nhập mật khẩu cũ');
+  async handleGoogleLogin(userData: any, response: Response) {
+    let user = await this.userRepo.findOneBy({ email: userData.email });
+    if (user) {
+      if (user.googleId) {
+        await this.createToken(user, response);
+        return {
+          status: 200,
+          success: true,
+          message: 'Đăng nhập thành công',
+          user: {
+            id: user.id,
+            name: user.username,
+            email: user.email,
+            role: user.role,
+          },
+        };
+      } else {
+        throw new ConflictException(
+          'Đã có tài khoản không thể đăng kí với Google!',
+        );
       }
-
-      const isPasswordValid = await bcrypt.compare(
-        updateData.password,
-        user.password,
-      );
-      if (!isPasswordValid) {
-        throw new ConflictException('Mật khẩu cũ không đúng!');
-      }
-
-      user.password = await bcrypt.hash(updateData.newPassword, 10);
     }
-
+    //Đăng kí với google
+    user = this.userRepo.create({
+      googleId: userData.googleId,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      email: userData.email,
+    });
     await this.userRepo.save(user);
-
-    // Remove password trước khi trả về
-    const { password, ...result } = user;
+    await this.createToken(user, response);
     return {
       status: 200,
       success: true,
-      message: 'Cập nhật thành công',
-      result: result,
+      message: 'Đăng nhập thành công',
+      user: {
+        id: user.id,
+        name: user.username,
+        email: user.email,
+        role: user.role,
+      },
     };
   }
 }

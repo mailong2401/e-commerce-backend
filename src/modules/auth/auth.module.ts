@@ -7,10 +7,17 @@ import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RedisService } from './redis/redis.service';
 import { OtpService } from './otp/otp.service';
+import { GoogleStrategy } from './google/google.strategy';
 
 @Module({
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, RedisService, OtpService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    RedisService,
+    OtpService,
+    GoogleStrategy,
+  ],
   imports: [
     JwtModule.register({
       signOptions: {},

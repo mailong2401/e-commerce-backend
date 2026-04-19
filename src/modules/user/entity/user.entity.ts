@@ -11,22 +11,25 @@ export class User {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Column({ nullable: true })
+  googleId!: string;
+
   @Column()
   firstName!: string;
 
   @Column()
   lastName!: string;
 
-  @Column({ unique: true })
+  @Column({ unique: true, nullable: true })
   username!: string;
 
-  @Column()
+  @Column({ nullable: true })
   password!: string;
 
   @Column({ unique: true })
   email!: string;
 
-  @Column()
+  @Column({ nullable: true })
   phone!: string;
 
   @Column({ nullable: true })
