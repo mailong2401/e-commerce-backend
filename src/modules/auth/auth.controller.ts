@@ -68,17 +68,19 @@ export class AuthController {
     // User info đã được JwtStrategy gắn vào request.user
     return request.user;
   }
+  //Login với google
+  // Bước 1: redirect sang Google
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleLogin() {} //viết đại hàm gì cũng được vì có hàm thì Guards mới dùng được
 
-  @Patch('address')
-  @UseGuards(AuthGuard('jwt')) // ← 'jwt' khớp với tên strategy
-  updateAddress(@Req() request: any, @Body() body: { address: string }) {
-    // User info đã được JwtStrategy gắn vào request.user
-    return this.authService.updateAddress(request.user.userId, body.address);
-  }
-
-  @Patch('update-profile')
-  @UseGuards(AuthGuard('jwt'))
-  updateProfile(@Req() request: any, @Body() body: Partial<UpdateDto>) {
-    return this.authService.updateProfile(request.user.userId, body);
+  // Bước 2: callback
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleCallback(
+    @Req() req,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    return this.authService.handleGoogleLogin(req.user, response);
   }
 }
