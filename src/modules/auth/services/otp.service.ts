@@ -19,10 +19,8 @@ export class OtpService {
 
     const otp = this.generateOtp();
 
-    // lưu Redis với TTL = 60s
     await this.redisService.set(`otp:register:${email}`, otp, 60);
 
-    // set cooldown 60s
     await this.redisService.set(`otp:cooldown:${email}`, '1', 60);
 
     console.log(`OTP của ${email}: ${otp}`);

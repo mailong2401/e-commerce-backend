@@ -1,29 +1,29 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '@/modules/user/entity/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { RegisterDto } from '@/modules/auth/dto/register';
-import { LoginDto } from '@/modules/auth/dto/login';
+import { RegisterDto } from '@/modules/auth/dto/register.dto';
+import { LoginDto } from '@/modules/auth/dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
-import { OtpService } from '@/modules/auth/otp/otp.service';
-import { ConfigService } from '@nestjs/config';
-import { RegisterGoogleDto } from '../user/dto/registerGoogle';
-import { UpdateDto } from '@/modules/user/dto/update';
+import { OtpService } from '@/modules/auth/services/otp.service';
+import { UserValidationService } from './services/user-validation.service';
+import { TokenService } from './services/token.service';
+import { CookieSevice } from './services/cookie.service';
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private jwtService: JwtService,
+    private userValidationService: UserValidationService,
+    private tokenService: TokenService,
+    private cookieService: CookieSevice,
     readonly otpService: OtpService,
-    private readonly configService: ConfigService,
   ) { }
 
   async sendOtpRegister(email: string, username: string) {
@@ -43,11 +43,13 @@ export class AuthService {
     const { firstName, lastName, username, email, password, phone, otp } =
       registerDto;
     await this.otpService.verifyOtp(email, otp);
-    const existingEmail = await this.checkEmailExists(email);
+    const existingEmail =
+      await this.userValidationService.checkEmailExists(email);
     if (existingEmail.exists) {
       throw new ConflictException('Email đã tồn tại!');
     }
-    const existingUsername = await this.checkUsernameExists(username);
+    const existingUsername =
+      await this.userValidationService.checkUsernameExists(username);
     if (existingUsername.exists) {
       throw new ConflictException('Username đã tồn tại!');
     }
@@ -74,68 +76,33 @@ export class AuthService {
     };
   }
 
-  async createToken(user: any, response: Response) {
-    // Tạo payload cho JWT
-    const payload = {
-      sub: user.id,
-      email: user.email,
-    };
-
-    // Tạo access token (15 phút)
-    const accessToken = this.jwtService.sign(payload, {
-      secret: process.env.ACCESS_TOKEN_SECRET,
-      expiresIn: '15m',
-    });
-
-    // Tạo refresh token (7 ngày)
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: process.env.REFRESH_TOKEN_SECRET,
-      expiresIn: '7d',
-    });
-
-    // Set cookies
-    this.setAuthCookies(response, accessToken, refreshToken);
-  }
-
-  private setAuthCookies(
-    response: any,
-    accessToken: string,
-    refreshToken: string,
-  ) {
-    // Cookie cho access token
-    response.cookie('access_token', accessToken, {
-      httpOnly: true, // Không cho JS truy cập (chống XSS)
-      secure: this.configService.get('NODE_ENV') === 'production', // Chỉ HTTPS trong production
-      sameSite: 'strict', // Chống CSRF
-      maxAge: 15 * 60 * 1000, // 15 phút
-      path: '/',
-    });
-
-    // Cookie cho refresh token
-    response.cookie('refresh_token', refreshToken, {
-      httpOnly: true,
-      secure: this.configService.get('NODE_ENV') === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-      path: '/',
-    });
-  }
-
   async login(loginDto: LoginDto, response: Response) {
     const { username, password } = loginDto;
 
-    // Tìm user
-    const user = await this.userRepo.findOneBy({ username });
+    const user = await this.userValidationService.validateCredentials(
+      username,
+      password,
+    );
     if (!user) {
-      throw new NotFoundException('Sai tài khoản hoặc mật khẩu');
-    }
-
-    // Kiểm tra password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
       throw new UnauthorizedException('Sai tài khoản hoặc mật khẩu');
     }
-    await this.createToken(user, response);
+
+    const payload = this.tokenService.createAuthPayload(user);
+    const { accessToken, refreshToken } =
+      this.tokenService.generateToken(payload);
+
+    this.cookieService.setAuthCookies(response, accessToken, refreshToken);
+    return {
+      status: 200,
+      success: true,
+      message: 'Đăng nhập thành công',
+      user: {
+        id: user.id,
+        name: user.username,
+        email: user.email,
+        role: user.role,
+      },
+    };
   }
 
   refreshToken(response: any, refreshToken: string) {
@@ -174,39 +141,17 @@ export class AuthService {
   }
 
   logout(response: any) {
+    this.cookieService.clearAuthCookies(response);
     // Xóa cookies
-    response.clearCookie('access_token');
-    response.clearCookie('refresh_token');
     return { status: 200, success: true, message: 'Đăng xuất thành công' };
-  }
-
-  async checkEmailExists(email: string) {
-    if (!email) {
-      throw new BadRequestException('Email này không được để trống');
-    }
-    const user = await this.userRepo.findOneBy({ email });
-    return {
-      exists: !!user,
-    };
-  }
-
-  async checkUsernameExists(username: string) {
-    if (!username) {
-      throw new BadRequestException('Username không được để trống');
-    }
-
-    const user = await this.userRepo.findOneBy({ username });
-
-    return {
-      exists: !!user,
-    };
   }
 
   async handleGoogleLogin(userData: any, response: Response) {
     let user = await this.userRepo.findOneBy({ email: userData.email });
     if (user) {
       if (user.googleId) {
-        await this.createToken(user, response);
+        const payload = this.tokenService.createAuthPayload(user);
+        this.tokenService.generateToken(payload);
         return {
           status: 200,
           success: true,
@@ -231,8 +176,8 @@ export class AuthService {
       lastName: userData.lastName,
       email: userData.email,
     });
-    await this.userRepo.save(user);
-    await this.createToken(user, response);
+    const payload = this.tokenService.createAuthPayload(user);
+    this.tokenService.generateToken(payload);
     return {
       status: 200,
       success: true,
