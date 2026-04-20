@@ -3,6 +3,8 @@ import { AppModule } from './app.module';
 import cookieParser from 'cookie-parser';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { LoggingInterceptor } from './interceptors/logging.interceptor';
+import { TransformInterceptor } from './interceptors/transform.interceptor';
 import * as session from 'express-session';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -33,7 +35,13 @@ async function bootstrap() {
     }),
   );
 
+  app.useGlobalInterceptors(
+    new LoggingInterceptor(),
+    new TransformInterceptor(),
+  );
+
   const port = configService.get<number>('PORT') ?? 8080;
+
   await app.listen(port);
 
   console.log(`🚀 Server running on http://localhost:${port}/api`);

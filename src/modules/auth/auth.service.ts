@@ -27,12 +27,14 @@ export class AuthService {
   ) { }
 
   async sendOtpRegister(email: string, username: string) {
-    const existingEmail = await this.userRepo.findOneBy({ email });
-    if (existingEmail) {
+    const existingEmail =
+      await this.userValidationService.checkEmailExists(email);
+    if (existingEmail.exists) {
       throw new ConflictException('Email đã tồn tại!');
     }
-    const existingUsername = await this.userRepo.findOneBy({ username });
-    if (existingUsername) {
+    const existingUsername =
+      await this.userValidationService.checkUsernameExists(username);
+    if (existingUsername.exists) {
       throw new ConflictException('Username đã tồn tại!');
     }
     //Gửi OTP
@@ -69,9 +71,6 @@ export class AuthService {
 
     const { password: _, ...result } = user;
     return {
-      status: 200,
-      success: true,
-      message: 'Đăng kí thành công!',
       result: result,
     };
   }
@@ -93,9 +92,6 @@ export class AuthService {
 
     this.cookieService.setAuthCookies(response, accessToken, refreshToken);
     return {
-      status: 200,
-      success: true,
-      message: 'Đăng nhập thành công',
       user: {
         id: user.id,
         name: user.username,
@@ -153,9 +149,6 @@ export class AuthService {
         const payload = this.tokenService.createAuthPayload(user);
         this.tokenService.generateToken(payload);
         return {
-          status: 200,
-          success: true,
-          message: 'Đăng nhập thành công',
           user: {
             id: user.id,
             name: user.username,
@@ -179,9 +172,6 @@ export class AuthService {
     const payload = this.tokenService.createAuthPayload(user);
     this.tokenService.generateToken(payload);
     return {
-      status: 200,
-      success: true,
-      message: 'Đăng nhập thành công',
       user: {
         id: user.id,
         name: user.username,

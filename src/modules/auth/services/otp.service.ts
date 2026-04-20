@@ -25,11 +25,7 @@ export class OtpService {
 
     console.log(`OTP của ${email}: ${otp}`);
 
-    return {
-      status: 200,
-      success: true,
-      message: 'OTP đã được gửi',
-    };
+    return;
   }
 
   async verifyOtp(email: string, otpInput: string) {
