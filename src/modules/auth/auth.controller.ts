@@ -10,14 +10,18 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterDto } from '@/modules/auth/dto/register';
-import { LoginDto } from '@/modules/auth/dto/login';
+import { RegisterDto } from '@/modules/auth/dto/register.dto';
+import { LoginDto } from '@/modules/auth/dto/login.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { UpdateDto } from '@/modules/user/dto/update';
+import { UserValidationService } from './services/user-validation.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(
+    private readonly authService: AuthService,
+    private readonly userValidation: UserValidationService,
+  ) { }
 
   @Post('send-otp')
   sendOtp(@Body('email') email: string, @Body('username') username: string) {
@@ -26,12 +30,12 @@ export class AuthController {
 
   @Get('check-email')
   async checkEmail(@Query('email') email: string) {
-    return this.authService.checkEmailExists(email);
+    return this.userValidation.checkEmailExists(email);
   }
 
   @Get('check-username')
   async checkUsername(@Query('username') username: string) {
-    return this.authService.checkUsernameExists(username);
+    return this.userValidation.checkUsernameExists(username);
   }
 
   @Post('register')
@@ -68,11 +72,9 @@ export class AuthController {
     // User info đã được JwtStrategy gắn vào request.user
     return request.user;
   }
-  //Login với google
-  // Bước 1: redirect sang Google
   @Get('google')
   @UseGuards(AuthGuard('google'))
-  async googleLogin() {} //viết đại hàm gì cũng được vì có hàm thì Guards mới dùng được
+  async googleLogin() { } //viết đại hàm gì cũng được vì có hàm thì Guards mới dùng được
 
   // Bước 2: callback
   @Get('google/callback')
